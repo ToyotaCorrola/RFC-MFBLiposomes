@@ -84,7 +84,7 @@ plt.plot(fpr_a450, tpr_a450, linestyle='--', color='blue', label=f'RF Model A450
 plt.plot(fpr_spectra, tpr_spectra, linestyle='-', color='red', label=f'RF Model All Spectra (AUC={auc_spectra:.2f})')
 
 # Plot Threshold 
-plt.plot(sorted_fpr, sorted_tpr, linestyle='-', color='green', label=f'(Threshold Curve AUC={auc_value:.2f})')
+plt.plot(sorted_fpr, sorted_tpr, linestyle='-', color='green', label=f'Threshold Curve (AUC={auc_value:.2f})')
 # Plot random guessing line
 plt.plot([0, 1], [0, 1], color='gray', linestyle='--')
 
