@@ -5,8 +5,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 
-# Load the data (adjust the file path as needed)
 data = pd.read_csv('data_file.csv')
+
 # List of spectral features (350 to 700 nm range)
 spectral_features = list(map(str, range(350, 710, 10)))
 
@@ -33,19 +33,26 @@ y_pred_proba_a450 = rf_a450.predict_proba(X_a450_test)[:, 1]
 y_pred_proba_spectra = rf_spectra.predict_proba(X_spectra_test)[:, 1]
 
 # Calculate ROC curve and AUC for both models
-fpr_a450, tpr_a450, _ = roc_curve(y_test, y_pred_proba_a450)
-fpr_spectra, tpr_spectra, _ = roc_curve(y_test, y_pred_proba_spectra)
+fpr_a450, tpr_a450, thresholds_a450 = roc_curve(y_test, y_pred_proba_a450)
+fpr_spectra, tpr_spectra, thresholds_spectra = roc_curve(y_test, y_pred_proba_spectra)
 
 auc_a450 = auc(fpr_a450, tpr_a450)
 auc_spectra = auc(fpr_spectra, tpr_spectra)
 
-#Calculate Threshold Curve
-####################################### 
-# Split the data into training and testing sets
-X_a450_train, X_a450_test, y_train, y_test = train_test_split(data[['450']], y, test_size=0.3, random_state=42)
+# Calculate Youden's J point for A450
+J_scores_a450 = tpr_a450 - fpr_a450
+J_index_a450 = np.argmax(J_scores_a450)
+optimal_threshold_a450 = thresholds_a450[J_index_a450]
 
+# Calculate Youden's J point for All Spectra
+J_scores_spectra = tpr_spectra - fpr_spectra
+J_index_spectra = np.argmax(J_scores_spectra)
+optimal_threshold_spectra = thresholds_spectra[J_index_spectra]
+
+# Calculate Threshold Curve
+#######################################
 # Initialize range of thresholds
-thresholds = np.linspace(0, 1, 10000)  #10000 points for redundancy 
+thresholds = np.linspace(0, 1, 10000)  # 10000 points for redundancy 
 
 # Store FPR and TPR for each threshold
 fpr_values = []
@@ -70,6 +77,14 @@ sorted_pairs = sorted(zip(fpr_values, tpr_values))
 sorted_fpr = [pair[0] for pair in sorted_pairs]
 sorted_tpr = [pair[1] for pair in sorted_pairs]
 
+# Calculate Youden's J for the threshold curve (green line)
+J_scores_threshold = np.array(sorted_tpr) - np.array(sorted_fpr)
+J_index_threshold = np.argmax(J_scores_threshold)
+
+# Get the optimal FPR and TPR for the threshold curve
+optimal_fpr_threshold = sorted_fpr[J_index_threshold]
+optimal_tpr_threshold = sorted_tpr[J_index_threshold]
+
 # Calculate AUC using the trapezoidal rule (Riemann sum)
 auc_value = np.trapz(sorted_tpr, sorted_fpr)
 #######################################
@@ -79,18 +94,26 @@ plt.figure(figsize=(6, 6))  # Adjust aspect ratio to square
 
 # Plot ROC for A450
 plt.plot(fpr_a450, tpr_a450, linestyle='--', color='blue', label=f'RF Model A450 (AUC={auc_a450:.2f})')
+# Plot Youden J point for A450
+plt.scatter(fpr_a450[J_index_a450], tpr_a450[J_index_a450], color='blue', marker='o', label=f'Youden J A450={(tpr_a450[J_index_a450]-fpr_a450[J_index_a450]):.2f}')
 
 # Plot ROC for All Spectra
 plt.plot(fpr_spectra, tpr_spectra, linestyle='-', color='red', label=f'RF Model All Spectra (AUC={auc_spectra:.2f})')
+# Plot Youden J point for All Spectra
+plt.scatter(fpr_spectra[J_index_spectra], tpr_spectra[J_index_spectra], color='red', marker='o', label=f'Youden J All Spectra={(tpr_spectra[J_index_spectra]-fpr_spectra[J_index_spectra]):.2f}')
 
-# Plot Threshold 
+# Plot Threshold Curve
 plt.plot(sorted_fpr, sorted_tpr, linestyle='-', color='green', label=f'Threshold Curve (AUC={auc_value:.2f})')
+
+# Plot Youden's J point for the green curve
+plt.scatter(optimal_fpr_threshold, optimal_tpr_threshold, color='green', marker='o', label=f'Youden J Threshold={(optimal_tpr_threshold-optimal_fpr_threshold):.2f}')
+
 # Plot random guessing line
 plt.plot([0, 1], [0, 1], color='gray', linestyle='--')
 
 # Adjust labels and title
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate', fontsize=14)
+plt.ylabel('True Positive Rate', fontsize=14)
 plt.legend(loc='lower right')
 plt.grid(True)
 plt.tight_layout()
